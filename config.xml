@@ -1,0 +1,3 @@
+<game>
+	<serverclass>org.lq.gomoku.Server</serverclass>
+</game>
