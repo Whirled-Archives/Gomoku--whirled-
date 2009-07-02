@@ -6,16 +6,16 @@ package org.lq.gomoku.logic {
 
 	public class BoardModel {
 	
-		private var _size : int;		
-		private var _fields : Array;		
+		public var _size : int;
+		public var _fields : Array;
 		private var _ctrl : GameControl;
 	
 		private var _prop : String;
 		
 		public static const EMPTY : int = -1;
 		public static const WHITE_PL : int = 1;
-		public static const BLACK_PL : int = 2;		
-		public static const MARKERS : Array = [ BLACK_PL, WHITE_PL ];
+		public static const BLACK_PL : int = 0;
+		// public static const MARKERS : Array = [ BLACK_PL, WHITE_PL ];
 		
 		public var fieldChanged : Function;
 		
@@ -118,10 +118,11 @@ package org.lq.gomoku.logic {
 				throw new IllegalMove("Piece already exists");
 			
 			if(!_ctrl.game.amServerAgent()) {				
-				_ctrl.net.agent.sendMessage(Server.MSG_MOVE, p);				
+				_ctrl.net.agent.sendMessage(Server.MSG_MOVE,
+                        {'player_id': pl.game_id, 'point': p} );
 			}	
 			else {
-				this._nonlocalMark(p, pl.boardMarker);				
+				this._nonlocalMark(p, pl.game_id);
 			}						
 		}
 		

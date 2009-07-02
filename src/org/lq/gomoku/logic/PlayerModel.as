@@ -1,32 +1,60 @@
 package org.lq.gomoku.logic {
-	
+
 	import com.whirled.game.GameControl;
 
-	public class PlayerModel {		
-		public var id : int, seat :int, name : String;	
-		public var boardMarker : int;
+	public class PlayerModel {
+        public var net_id : int;
+        public var name : String;
+
+        /* game internal id */
+        public var game_id : int;
+        public var _active : Boolean;
+        public var notify : Function = null;
 	
-		public var active : Boolean;
-		public var changeNotify : Function;
-	
-		public function PlayerModel(_ctrl : GameControl, 
-                _id : int, _seat : int, _name : int)
+		public function PlayerModel(_name : String, _netid : int, _gameid : int)
         {
-			id = _id;
-            seat = _seat;
-			name = _name;
+			net_id = _netid;
+            name = _name;
+            game_id = _gameid
 		}
-		
-		public function setActive(flag : Boolean) : void {
-			var last : Boolean = this.active;
-				
-			if(flag != last) { 
-				this.active = flag;
-				
-				if( changeNotify != null) 
-					changeNotify.call(changeNotify, flag);
-			}
-		}
+
+        public virtual function pickle() : Object {
+            var d : Object = new Object();
+            d.net_id = net_id;
+            d.name = name;
+            d.game_id = game_id;
+
+            return d;
+        }
+
+        public static function unpickle(_ctrl :GameControl, o : Object) : PlayerModel
+        {
+            var p : PlayerModel;
+
+            if(o.klass == "ai") {
+                p = new AIPlayer(o.game_id);
+            }
+            else if(o.klass == "whirled") {
+                p = new WhirledPlayer(_ctrl, o.net_id, o.game_id);
+            }
+            else
+                throw new Error("Wrong player pickle klass:" + o.klass);
+
+            return p;
+        }
+
+        public function headshot(library: Object): Object {
+            throw new Error("Not implemented");
+        }
+
+        public function active(next : Boolean): void
+        {
+            var last : Boolean = _active;
+            _active = next;
+
+            if( (last != _active) && (this.notify != null))
+                this.notify(this);
+        }
 
 	}
 }

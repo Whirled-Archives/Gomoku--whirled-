@@ -29,14 +29,14 @@ package org.lq.gomoku {
 		{
 			_ctrl = ctrl;
 			_plr = plr;
-			_plr.changeNotify = _onChange;
+			_plr.notify = _onChange;
 						
 			_bg = new MediaLibrary._playerView();
 			_bg.x = 5;
 			_bg.y = 5;
 			addChild(_bg);
 			
-			_headshot = _ctrl.local.getHeadShot(_plr.id);
+			_headshot = _plr.headshot(MediaLibrary) as DisplayObject;
 			_headshot.x = 10;
 			_headshot.y = 9;			
 			addChild(_headshot);
@@ -62,9 +62,12 @@ package org.lq.gomoku {
 			_bg.filters = [];
 		}
 		
-		public function _onChange( isActive : Boolean ) : void 
-		{					
-			if(isActive) {				
+		public function _onChange(p : PlayerModel) : void
+		{
+            if(p != _plr)
+                throw new Error("Bad notifier");
+
+			if(_plr._active) {
 				_bg.filters = [ _glow ];
 			}
 			else {

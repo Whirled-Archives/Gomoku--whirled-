@@ -26,13 +26,16 @@ public class MediaLibrary {
 	
 	[Embed(source="logo.jpeg")]
 	public static var _logo : Class;
+
+    [Embed(source="aiplayer_headshot.png")]
+    public static var _headshot : Class;
 	
 	public function MediaLibrary(parent : GameControl) {
 		_parent = parent;		
 		
 		imgWoodPattern = new _imgWoodPattern() as Bitmap;		
 		imgWhitePiece = new _imgWhitePiece() as Bitmap;
-		imgBlackPiece = new _imgBlackPiece() as Bitmap;		
+		imgBlackPiece = new _imgBlackPiece() as Bitmap;
 	}	
 	
 }
