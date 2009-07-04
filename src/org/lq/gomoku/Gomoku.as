@@ -30,7 +30,7 @@ public class Gomoku extends Sprite
 	private var _board : BoardModel;
 	private var _boardView : GobanView;
 	private var _players : Array;
-	private var _me : PlayerModel;
+	private var _me : PlayerModel = null;
 
 	private var _seatOne : PlayerView, _seatTwo : PlayerView;
 	
@@ -42,14 +42,13 @@ public class Gomoku extends Sprite
         _ctrl = new GameControl(this);
                 
         _ctrl.net.addEventListener(PropertyChangedEvent.PROPERTY_CHANGED, propertyChanged);        
-        _ctrl.game.addEventListener(StateChangedEvent.TURN_CHANGED, turnChanged);
+        // _ctrl.game.addEventListener(StateChangedEvent.TURN_CHANGED, turnChanged);
         _ctrl.game.addEventListener(StateChangedEvent.GAME_STARTED, gameStarted);
         _ctrl.game.addEventListener(StateChangedEvent.GAME_ENDED, gameEnded);
 
         _ctrl.net.addEventListener(MessageReceivedEvent.MESSAGE_RECEIVED, messageReceived);           
         
         _media = new MediaLibrary(_ctrl);
-        _players = new Array();
         
         with(graphics) 
         {
@@ -58,9 +57,16 @@ public class Gomoku extends Sprite
         	endFill();
         	
         	beginFill(0xf0f0f0);
-        	drawRect(350, 0, 700, 500);
+        	drawRect(350, 0, 350, 500);
         	endFill();
         }
+
+        var img:Bitmap = new MediaLibrary._decor_image();
+
+        img.x = 620;
+        img.y = 280;
+        addChild(img);
+
         
         if(! _ctrl.isConnected() )
         {
@@ -88,28 +94,34 @@ public class Gomoku extends Sprite
     
     private function gameStarted(event : StateChangedEvent) : void
     {
-    	_ctrl.local.feedback("The game has started.");    	
-    	// _ctrl.local.feedback("Controller: " + _ctrl.game.getControllerId() + "\n");
-    	// _ctrl.local.feedback("Turn holder: " + _ctrl.game.getTurnHolderId() + "\n");
-    	    	    	
-    	if(_seatOne == null) {
-    		_seatOne = new PlayerView(_ctrl, _players[0]);
-    		_seatOne.x = 8;
-    		_seatOne.y = 50;
-    		addChild(_seatOne);
-    	}    	
-        
-    	if(_seatTwo == null) {
-    		_seatTwo = new PlayerView(_ctrl, _players[1]);
-    		_seatTwo.x = 592; /* 700 - 8 - 100 */
-    		_seatTwo.y = 50;
-    		addChild(_seatTwo);
-    	}    	
-    } 
+    	log("The game has started.");
+    }
+
+    private function setUpViews() : void
+    {
+        if(_seatOne != null) {
+            removeChild(_seatOne);
+        }
+
+        if(_seatTwo != null) {
+            removeChild(_seatTwo);
+        }
+         
+    	_seatOne = new PlayerView(_ctrl, _players[0]);
+    	_seatOne.x = 15;
+    	_seatOne.y = 50;
+    	    	
+    	_seatTwo = new PlayerView(_ctrl, _players[1]);
+    	_seatTwo.x = 585; // 700 - 8 - 100
+    	_seatTwo.y = 50;
+
+        addChild(_seatOne);
+    	addChild(_seatTwo);    	
+    }
     
     private function gameEnded(event : StateChangedEvent) : void
     {
-    	_ctrl.local.feedback("Game is over\n");   
+    	log("Game over.");
     	
     	_seatOne.reset();
     	_seatTwo.reset();
@@ -117,13 +129,33 @@ public class Gomoku extends Sprite
     
     protected function messageReceived (event :MessageReceivedEvent) :void
     {
-    	_ctrl.local.feedback("Got message from server: " + event.name + " value: "
-    			+ event.value );
+    	/* _ctrl.local.feedback("Got message from server: " + event.name + " value: "
+    			+ event.value + "\n"); */
 
-        if(event.name == Server.MSG_PLAYER_IN)
+        if(event.name == Server.PMSG_DATA)
         {
-            _players[event.value.seat] = event.value;
-            _ctrl.game.playerReady();
+            var _pp:Array = event.value as Array;
+            _players = new Array();
+
+            _pp.forEach( function(obj:Object, i:int, a:Array):void {
+                var player :PlayerModel = PlayerModel.unpickle(_ctrl, obj);
+                _players[player.game_id] = player;
+
+                if(player.net_id == _ctrl.game.getMyId())
+                    _me = player;
+            });
+
+
+
+            if(_me == null)
+                throw new Error("ID mismatch");
+
+            this.setUpViews();
+            return;
+        }
+        else if(event.name == Server.PMSG_TURN)
+        {
+            turnChanged(event.value);
             return;
         }
             
@@ -133,14 +165,18 @@ public class Gomoku extends Sprite
    	{
     	if (event.name == Server.PROP_BOARD) 
     	{
+            //log('Board changed');
     		if(event.newValue == null)
     		{
+                //log('Board reset');
     			/* board has been cleared */
     			removeChild(_boardView);
     			_board = null;
     			_boardView = null;
     			return;
     		}
+
+            //log('Creating new board');
     		
     		/* New model has been set */
     		_board = BoardModel.newBoardFromProp(_ctrl, Server.PROP_BOARD, 
@@ -164,27 +200,28 @@ public class Gomoku extends Sprite
    		}
    	}   
     
-    protected function turnChanged (event :StateChangedEvent) :void
+    protected function turnChanged (event: Object) :void
 	{   
-    	var th : int = _ctrl.game.getTurnHolderId();
-        // _ctrl.local.feedback( "New turn holder: " +  th + "\n");
+        //log("New turn holder: " +  event.next);
         
-        if(th == 0)
-        	return;
-                        
-        for each(var p :PlayerModel in _players) {
-        	// _ctrl.local.feedback( "Setting " + p.id + " to " + (p.id == th) + "\n");               	
-        	p.setActive( (p.id == th) );
+        for each(var p :PlayerModel in _players)
+        {
+        	//log( "Setting " + p.name + " to " + (p.game_id == event.next) + "\n");
+        	p.active( (p.game_id == event.next) );
         }
         	
         if(_boardView != null)
-        	_boardView.enabled = (th == _me.id);		
+        	_boardView.enabled = (event.next == _me.game_id);
 	}
     
     public function get whirled () : GameControl
 	{
 		return _ctrl;
-	}    
+	}
+
+    public function log(txt : String) : void {
+        _ctrl.local.feedback("" + txt + '\n');
+    }
 } /* end of class */
 
 } /* end of package */

@@ -21,13 +21,25 @@ import flash.geom.Point;
 public class Server
 {
 	private var _players : Array;
+    private var _lastid : int = 0;
 	private var _board : BoardModel; 
 	private var _current : PlayerModel;
+    private var _aiplayers : Array;
+    
+    private static const AI_DEPTH:Object = {'Normal': 1, 'Hard': 2};
+    public static const AI_LOG:Boolean = false;
+
+    private var _firstRun : Boolean = true;
 
 	public static const PROP_BOARD : String = "PROP_BOARD";
-    public static const MSG_PLAYER_IN : String = "MSG_NEW_PLAYER";
-	public static const MSG_MOVE : String = "MSG_MOVE";
-	public static const MSG_MOVE_ACK : String = "MSG_MOVE_ACK";
+
+    public static const PMSG_DATA : String = "PMSG_DATA";
+    public static const PMSG_TURN : String = "PMSG_TURN";
+
+    public static const MSG_MOVE : String = "MSG_MOVE";
+    public static const MSG_MOVE_ACK : String = "MSG_MOVE";
+
+    public static const MIN_PLAYER_FILL :int = 2;
 	
 	private var state : int;
 	
@@ -35,16 +47,18 @@ public class Server
 	private static const STATE_STARTING :int = 1;
 	private static const STATE_STARTED :int = 2;
 	private static const STATE_ENDED :int = 3;
+
+    private var _config : Object;
 	
     /**
      * Constructs a new server agent.
      */
     public function Server ()
     {    	
-        _control = new GameControl( new ServerObject (), true);
+        _control = new GameControl( new ServerObject (), false);
         _control.game.addEventListener(StateChangedEvent.GAME_STARTED, gameStarted);
         _control.game.addEventListener(StateChangedEvent.GAME_ENDED, gameEnded);
-        _control.game.addEventListener(StateChangedEvent.TURN_CHANGED, turnChanged);
+        // _control.game.addEventListener(StateChangedEvent.TURN_CHANGED, turnChanged);
 
         _control.game.addEventListener(OccupantChangedEvent.OCCUPANT_ENTERED, occupantIn);
         _control.game.addEventListener(OccupantChangedEvent.OCCUPANT_LEFT, occupantOut);
@@ -53,114 +67,212 @@ public class Server
         
         state = STATE_PREINIT;
 
+        _config = _control.game.getConfig();
+
+        // players in order of seating
         _players = new Array();
+        _aiplayers = new Array();
     }
+
+    private static function randomlyShuffle(a:Array):void 
+    {
+        var i:int;
+        var b:Array = new Array();
+
+        for(i=0; i < a.length; i++) {
+            b[i] = Math.random();
+        }
+
+        var t:int, tt:*;
+        var s:Boolean = false;
+
+        do
+        {
+            s = false;
+            for(i=0; i < b.length-1; i++)
+            {
+                if (b[i] > b[i+1])
+                {
+                    t = b[i]; tt = a[i];
+                    b[i] = b[i+1]; a[i] = a[i+1];
+                    b[i+1] = t; a[i+1] = tt;
+                    s = true;
+                }
+            }
+       }
+       while(s);
+    }
+
     
     protected function gameStarted (event :StateChangedEvent) :void
     {
-    	trace("Game started on server-side");
+        log("Game started");
 
-        var ai_player:* = new LoopbackGameControl(null, true, false);
-
-        trace("Game started on server-side");
-
-    	if(_board != null) {
+        if(_board != null)
+        {
     		/* clean-up the board first */
     		_board.unpublish();
     		_board = null;
     	}
 
-    	/* initialize the board */
-    	_board = BoardModel.newBoard(_control, 19, PROP_BOARD);
-    	_board.fieldChanged = onBoardChanged;
-    	_board.publish();    	
-    	    	
-    	_current = null;  	    	
+        
+            /* initialize the board */
+        _board = BoardModel.newBoard(_control, 
+           (_config.boardSize ? _config.boardSize : 13), PROP_BOARD);
+        _board.fieldChanged = onBoardChanged;
+        _board.publish();
+
+        _current = null;
+        
+        if(_firstRun)
+        {
+            /* fill in missing spots */
+            for(var i:int=_lastid; i < MIN_PLAYER_FILL; i++)
+            {
+                var p : PlayerModel = new AIPlayer(_lastid++,
+                    _config.ailevel ? AI_DEPTH[_config.ailevel] : 2 );
+                _players[p.game_id] = p;
+                _aiplayers.push(p);
+                log("Added AI player.");
+            }
+
+            _firstRun = false;
+        }
+
+        randomlyShuffle(_players);
+   
+        /* update ids */
+        _players.forEach( function(p:PlayerModel, i:int, a:Array):void {
+                p.game_id = i;
+        } );
+
+        /* send player info */
+        var dataset :Array = new Array();
+        _players.forEach( function(e:PlayerModel, i:int, a:Array):void {
+                log("" + i + ": " + e.name)
+                dataset.push( e.pickle() );
+        });
+
+        _control.net.sendMessage(PMSG_DATA, dataset);
+        log('Player info sent.')
     	
     	state = STATE_STARTING;
-    	
-    	/* Black always starts */    	
-    	//_control.game.startNextTurn(_players[0].id);
+        switchTurn(0);
+    }
+
+
+    protected function switchTurn(playerId : int): void
+    {
+        var o : Object = new Object();
+        if(_current)
+            o.old = _current.game_id
+        else
+            o.old = -1
+
+        _current = _players[playerId];
+        o.next = _current.game_id;
+
+        _current.active(true);
+        _control.net.sendMessage(PMSG_TURN, o);
     }
     
     protected function gameEnded (event :StateChangedEvent) :void
     {
-    	trace("Game ended");
+    	trace("Game ended. Winner: " + _current.name);
+
+        for each(var p:PlayerModel in _players )
+        {
+            if(! (p is AIPlayer) )
+                updatePrivateData(p, (p == _current));
+        }
     	
     	/* flush the data */    	
     	_current = null;
-    	_players = null;    	
+    	//_players = null;
     	
     	state = STATE_ENDED;
     }
     
-    protected function turnChanged (event :StateChangedEvent) :void
-    {      		
-    	
-    	if( (state != STATE_STARTING) && (state != STATE_STARTED) ) 
-    	{
-    		trace("Game not started yet - ignoring");
-    		return;
-    	}
-    	_current = _players[ _control.game.seating.getPlayerPosition(
-    			_control.game.getTurnHolderId()) ];
-    	
-    	trace("current player: " + _current.id + "(" 
-    		+ _current.seat + ")");    	
-	}
-    
     protected function messageReceived (event :MessageReceivedEvent) :void
-    {    	
-    	if (event.senderId == NetSubControl.TO_SERVER_AGENT )
-    		return;
+    {
+        log("Got message " + event.name + " from " + event.senderId);
+
+        if (event.name.substr(0, 5) == "PMSG_")
+        {
+            _aiplayers.forEach( function(ai:AIPlayer, i:int, a:Array):void
+            {
+                ai.playerMessage(event.name, event.value,
+                    {'control': _control, 'board': _board} );
+            });
+
+            return;
+        }
     	
-    	trace("Got message " + event.name + " from " + event.senderId);
-    	
-    	/*if(event.name == "I_WIN") {
-    		var player : PlayerModel = _players[
-    		           _control.game.seating.getPlayerPosition(event.senderId)];
-    		var other : PlayerModel = _players[1 - player.seat];
-    	
-    		_control.game.endGameWithWinners( 
-    				[player.id], [other.id], GameSubControl.WINNERS_TAKE_ALL );
-    		return;    		
-    	}*/
-    	
-    	if(event.name == Server.MSG_MOVE) {
+    	if(event.name == Server.MSG_MOVE) 
+        {
     		
     		if(_current == null) 
     		{
-    			trace("[WARNING] Got move, but turn not inialized yet");
+    			log("[WARNING] Got move, but turn not inialized yet");
     			return;
     		}
     		
-    		/* validate move */
-    		var plr : PlayerModel = _players[
-    		    _control.game.seating.getPlayerPosition(event.senderId)];
+    		if( (event.senderId != _current.net_id)
+             || (event.value.player_id != _current.game_id) )
+            {
+                _control.net.sendMessage(MSG_MOVE_ACK,
+    				{'player_id': event.value.player_id, 'result': false},
+                    event.senderId);
+                return;
+            }
+
+            log("" + _current.name + "'s move: " + event.value.point);
     	
-    		if(plr.id != _current.id) {
-    			_control.net.sendMessage(MSG_MOVE_ACK,
-    					false, event.senderId);
-    			return;
-    		}
-    	
-    		_board.placePieceAt(event.value as Point,_current);
+    		_board.placePieceAt(event.value.point as Point, _current);
     	}
+    }
+
+    private function otherPlayersIds() : Array
+    {
+        return _players.
+            filter( function(o:*,i:int,a:Array):Boolean
+                { return (o == _current) && (o != NetSubControl.TO_SERVER_AGENT); } ).
+            map( function(o:*,i:int,a:Array):int
+                { return o.net_id; } );
+    }
+
+    private function allPlayersIds() : Array
+    {
+        return _players.
+            filter( function(o:*,i:int,a:Array):Boolean
+                { return o != NetSubControl.TO_SERVER_AGENT; } ).
+            map( function(o:*,i:int,a:Array):int
+                { return o.net_id; } );
+    }
+
+    private function nextPlayerId() : int
+    {
+        return (_current.game_id + 1) % _players.length;
     }
     
     private function onBoardChanged(p : Point, _old : int, _new :int) : void
-    {
-    	var _other : PlayerModel = _players[1 - _current.seat];
-    	
+    {	
     	/* check win condition */
     	if( checkFiveOrMore(p, _current) )
-    	{    		  		
-    		_control.game.endGameWithWinners( 
-    				[_current.id], [_other.id], GameSubControl.WINNERS_TAKE_ALL );    	
+    	{
+            if(_current.net_id == NetSubControl.TO_SERVER_AGENT)
+            { // ai player won
+                _control.game.endGameWithWinners([], allPlayersIds(),
+                    GameSubControl.WINNERS_TAKE_ALL );
+            }
+            else {
+                _control.game.endGameWithWinners([_current.net_id], otherPlayersIds(),
+                    GameSubControl.WINNERS_TAKE_ALL );
+            }
     		return;
     	}   		
     	
-    	_control.game.startNextTurn(_other.id);    	
+    	switchTurn( nextPlayerId() );
     }
     
     private function checkFiveOrMore( p : Point, plr : PlayerModel) : Boolean 
@@ -171,12 +283,12 @@ public class Server
     		var c : Point = new Point(p.x + axis.x, p.y + axis.y);
     		var len : int = 1;
     	
-    		trace("Checking axis " + axis.x + ", " + axis.y);
+    		// trace("Checking axis " + axis.x + ", " + axis.y);
     	
     		while( _board.isValid(c) ) {
-    			trace("Piece is: " + _board.field(c));
+    			// trace("Piece is: " + _board.field(c));
     			
-    			if( _board.field(c) != plr.boardMarker)
+    			if( _board.field(c) != plr.game_id)
     				break;
     					
     			c.x += axis.x;
@@ -188,9 +300,9 @@ public class Server
     		c.y = p.y - axis.y;
     		
     		while( _board.isValid(c) ) {
-    			trace("Piece is: " + _board.field(c));
+    			// trace("Piece is: " + _board.field(c));
     			
-    			if( _board.field(c) != plr.boardMarker)
+    			if( _board.field(c) != plr.game_id)
     				break;
     			
     			c.x -= axis.x;
@@ -212,9 +324,10 @@ public class Server
         }
        
         trace("Player entered: " + event.occupantId);
-        var player : PlayerModel = new PlayerModel(_control, event.occupantId);
+        var player : PlayerModel = 
+            new WhirledPlayer(_control, event.occupantId, _lastid++);
 
-        _control.net.sendMessage(Server.MSG_PLAYER_IN, player.id);
+        _players[player.game_id] = player;
     }
 
     private function occupantOut(event : OccupantChangedEvent): void
@@ -224,8 +337,74 @@ public class Server
             return;
         }
 
-        trace("Player left: " + event.occupantId);
-        _control.game.takeOverPlayer(event.occupantId);
+        trace("Player left: " + event.occupantId);       
+    }
+
+    private static const TROPHY_DEFAULTS:Object = {
+            'games_played': 0,
+            'wins_black': 0,
+            'wins_white': 0,
+            'mp_games_played': 0, 'mp_wins': 0
+    }
+
+
+    private function updatePrivateData(p:PlayerModel, win:Boolean):void
+    {
+        _control.player.getCookie( function (cookie :Object, pid:int):void
+        {
+            if(cookie == null)
+                cookie = new Object();
+
+            // fix the defaults
+            for(var key:String in TROPHY_DEFAULTS) {                
+                cookie[key] = (cookie[key] ? cookie[key] : TROPHY_DEFAULTS[key]);
+            }
+
+            log(p.name + "'s cookie:");
+            for(key in cookie) {
+                log(key + ': ' + cookie[key]);
+            }
+
+            cookie.games_played += 1;
+
+            if(win && (p.game_id == BoardModel.BLACK_PL))
+                cookie.wins_black += 1;
+
+            if(win && (p.game_id == BoardModel.WHITE_PL))
+                cookie.wins_white += 1;
+
+            if(_aiplayers.length == 0) {
+                cookie.mp_games_played += 1;
+                if(win) cookie.mp_wins += 1;
+            }
+
+            _control.player.setCookie(cookie, p.net_id);
+            awardTrophiesToPlayer(p, cookie);
+        }, p.net_id );
+    }
+
+    private function awardTrophiesToPlayer(p:PlayerModel, cookie:Object):void
+    {
+        if(cookie.games_played > 100)
+            _control.player.awardTrophy('sensei_trophy_1', p.net_id);
+
+        if(cookie.wins_white > 50)
+            _control.player.awardTrophy('yang_wins', p.net_id);
+
+        if(cookie.wins_black > 50)
+            _control.player.awardTrophy('yin_wins', p.net_id);
+
+        if(cookie.mp_wins >= 25)
+            _control.player.awardTrophy('multi_wins_25', p.net_id);
+    }
+
+    public static function ai_log(txt : String) : void {
+        if(Server.AI_LOG)
+            trace("[ai] " + txt);
+    }
+
+    public static function log(txt : String) : void {
+        trace("[server] " + txt);
     }
 
     protected var _control :GameControl;

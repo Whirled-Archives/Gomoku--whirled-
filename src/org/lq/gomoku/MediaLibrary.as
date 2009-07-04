@@ -9,6 +9,18 @@ public class MediaLibrary {
 	
 	private var _parent : GameControl;
 
+    [Embed(source="rematch_up.png")]
+	public static var _button_rematch_up : Class;
+
+    [Embed(source="rematch_down.png")]
+	public static var _button_rematch_down : Class;
+
+    [Embed(source="rematch_off.png")]
+	public static var _button_rematch_off : Class;
+
+    [Embed(source="gomokunarabe.png")]
+	public static var _decor_image : Class;
+
 	[Embed(source="wood.png")]	
 	public var _imgWoodPattern : Class;
 	public var imgWoodPattern : Bitmap;

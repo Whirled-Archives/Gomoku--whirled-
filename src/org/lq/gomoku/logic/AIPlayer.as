@@ -8,15 +8,20 @@ package org.lq.gomoku.logic {
 
     public class AIPlayer extends PlayerModel
     {
-        public function AIPlayer(_gameid : int)
+
+        private var depth: int = 1;
+
+        public function AIPlayer(_gameid : int, _depth:int)
         {
             super("AI Player", NetSubControl.TO_SERVER_AGENT, _gameid);
+            depth = _depth;
 		}
 
         public override function pickle() : Object
         {
             var d :Object = super.pickle();
             d.klass = "ai";
+            d.abdepth = depth;
             return d;
         }
     
@@ -32,8 +37,10 @@ package org.lq.gomoku.logic {
             {
                 /* create boardstate */
                 var b:BoardState = BoardState.fromModel(context.board)
+                var deadline:Date = new Date();
+                deadline.time += 10000;
 
-                var move:* = MinMax.alphabeta(b, 1, game_id, -10000, 10000);
+                var move:* = MinMax.alphabeta(b, depth, game_id, -100000, 100000, deadline);
 
                 if(move.move < 0)
                     throw new Error("no move availble.");

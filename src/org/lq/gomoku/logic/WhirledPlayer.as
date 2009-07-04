@@ -27,6 +27,10 @@ package org.lq.gomoku.logic {
             return game_ctrl.local.getHeadShot(net_id);
         }
 
+        public function rematch(): void 
+        {
+            game_ctrl.game.playerReady();
+        }
     }
 
 }

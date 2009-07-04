@@ -9,7 +9,8 @@ package org.lq.gomoku.logic {
         /* game internal id */
         public var game_id : int;
         public var _active : Boolean;
-        public var notify : Function = null;
+        public var notify : Function = function(p:PlayerModel):void  {};
+        // public var klass : String = 'none';
 	
 		public function PlayerModel(_name : String, _netid : int, _gameid : int)
         {
@@ -32,7 +33,7 @@ package org.lq.gomoku.logic {
             var p : PlayerModel;
 
             if(o.klass == "ai") {
-                p = new AIPlayer(o.game_id);
+                p = new AIPlayer(o.game_id, o.aidepth);
             }
             else if(o.klass == "whirled") {
                 p = new WhirledPlayer(_ctrl, o.net_id, o.game_id);
@@ -49,11 +50,9 @@ package org.lq.gomoku.logic {
 
         public function active(next : Boolean): void
         {
-            var last : Boolean = _active;
-            _active = next;
+           _active = next;
 
-            if( (last != _active) && (this.notify != null))
-                this.notify(this);
+           this.notify(this);
         }
 
 	}

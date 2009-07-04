@@ -2,12 +2,14 @@ package org.lq.gomoku.ai
 {
 
     import org.lq.gomoku.logic.BoardModel;
+    import org.lq.gomoku.logic.Server;
 
     public class BoardState
     {
         public var data:Array;
         public var size:int;
 
+        /* rate how good this position is for the given player */
         public function value(me:int):Number
         {
             var gcount:Array = new Array();
@@ -70,38 +72,61 @@ package org.lq.gomoku.ai
 
           var s:Number = 0;
 
-
           // instant win
-          s += (gcount[me][5][0] + gcount[me][5][1] + gcount[me][5][2])
-                * (-2000);
-          if(s < 0) return s;
+          s += (gcount[me][5][2]) * 5000;
+          s += (gcount[me][5][1]) * 5000;
+          s += (gcount[me][5][0]) * 5000;
 
-          // instant lose
-          s += (gcount[1-me][5][0] + gcount[1-me][5][1] + gcount[1-me][5][2])
-                * 2000;
-          s += gcount[1-me][4][2] * 2000;
-          s += gcount[1-me][4][1] * 500;
-          if(s > 0) return s;
-
-          // sure win
-          s += (gcount[me][4][2]) * (-1000);
-          
-          s += gcount[1-me][3][2] * 100;
-          s += gcount[1-me][2][2] * 5;
-          s += gcount[1-me][1][2] * 2;
-
-          var dist_sum:Number = 0;
-
-          for(var x:Number=0; x < data.length; x += 1)
-          {
-            if(data[x] == me)
-                dist_sum += (x-data.length/2)*(x-data.length/2);
+          if(s > 0) {
+            print_board();
+            Server.ai_log("winning position for player: " + me);
+            return s;
           }
 
-          print_counts(gcount, me);
-          trace('DS: ' + (s + (dist_sum/100000)) );
+          // instant lose
+          s += gcount[1-me][5][0] * -2000;
+          s += gcount[1-me][5][1] * -2000;
+          s += gcount[1-me][5][2] * -2000;
+                    
+          if(s < 0) {
+            print_board();
+            Server.ai_log("losing position for player: " + me);
+            return s;
+          }
 
-          return (s + (dist_sum/100000));
+          // sure win
+          s += (gcount[me][4][2]) * 3000;
+          s += (gcount[me][4][1]) * 3000;
+
+          if(s > 0) {
+            print_board();
+            Server.ai_log("winning position for player: " + me);
+            return s;
+          }
+
+          // sure lose
+          s += gcount[1-me][4][2] * -1000;
+
+          if(s < 0) {
+            print_board();
+            Server.ai_log("losing position for player: " + me);
+            return s;
+          }
+
+          s += gcount[me][3][2] * 100;
+
+          // good moves
+          s += gcount[me][2][2] * 10;
+          s += gcount[me][1][2] * 1;
+
+          // not so good
+          s -= gcount[1-me][3][2] * 8;
+          s -= gcount[1-me][2][2] * 4;
+
+          if(Server.AI_LOG)
+              print_counts(gcount, me);
+
+          return s;
         }
 
         private static function group_iter(next_row:Function, group_end:Function):void
@@ -150,16 +175,37 @@ package org.lq.gomoku.ai
             }
        }
 
+
+       private function print_board():void 
+       {
+            var s:String = '';
+            var x:int,y:int, i:int;
+
+            Server.ai_log('Board state: ');
+            for(y=0; y < size; y++) {
+                s = '';
+
+                for(x=0; x < size; x++) {
+                    i = data[y*size + x];
+                    if (i < 0) s += '.';
+                    else if(i == 0) s += 'X';
+                    else if(i == 1) s += 'O';
+                    else s += '?';
+                }
+                Server.ai_log(s);
+            }
+        }
+
         private static function print_counts(a:Array, me:int):void
         {
             var i:int;
 
             for (i=1; i <= 5; i++) {
-                trace('[my:' + me + '] ' + i + ' - '+ a[me][i][0]+' '+a[me][i][1]+' '+a[me][i][2]);
+                Server.ai_log('[my:' + me + '] ' + i + ' - '+ a[me][i][0]+' '+a[me][i][1]+' '+a[me][i][2]);
             }
 
             for (i=1; i <= 5; i++) {
-                trace('[his:' + (1-me) + '] ' + i + ' - '+ a[1-me][i][0]+' '+a[1-me][i][1]+' '+a[1-me][i][2]);
+                Server.ai_log('[his:' + (1-me) + '] ' + i + ' - '+ a[1-me][i][0]+' '+a[1-me][i][1]+' '+a[1-me][i][2]);
             }
         }
 
@@ -189,11 +235,11 @@ package org.lq.gomoku.ai
 
             // put in some randomness
             // also, makes sure there are any moves
-            for(i=0; i < 3; i++) {
-                x = int(Math.random() * data.length);
-                if(data[x] < 0)
-                    a.push(x);
-            }
+            // for(i=0; i < 2; i++) {
+            //    x = int(Math.random() * data.length);
+            //    if(data[x] < 0)
+            //        a.push(x);
+            //}
             
             return a;
         }

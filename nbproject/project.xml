@@ -24,7 +24,7 @@
             </folders>
             <ide-actions>
                 <action name="build">
-                    <target>build</target>
+                    <target>compile</target>
                 </action>
                 <action name="clean">
                     <target>clean</target>
@@ -33,14 +33,14 @@
                     <target>asdoc</target>
                 </action>
                 <action name="run">
-                    <target>test-debug</target>
+                    <target>test</target>
                 </action>
                 <action name="test">
-                    <target>test</target>
+                    <target>test-debug</target>
                 </action>
                 <action name="rebuild">
                     <target>clean</target>
-                    <target>build</target>
+                    <target>compile</target>
                 </action>
             </ide-actions>
             <view>
