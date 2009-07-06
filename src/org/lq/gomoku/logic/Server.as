@@ -6,7 +6,8 @@ import com.whirled.game.GameSubControl;
 import com.whirled.game.NetSubControl;
 import com.whirled.game.StateChangedEvent;
 import com.whirled.game.OccupantChangedEvent;
-import com.whirled.game.loopback.LoopbackGameControl;
+
+import org.lq.gomoku.ai.AIPlayer;
 
 import com.whirled.net.MessageReceivedEvent;
 
@@ -22,7 +23,9 @@ public class Server
 {
 	private var _players : Array;
     private var _lastid : int = 0;
-	private var _board : BoardModel; 
+	private var _board : BoardModel;
+    private var _bmodel : BoardGroupModel;
+
 	private var _current : PlayerModel;
     private var _aiplayers : Array;
     
@@ -119,6 +122,10 @@ public class Server
             /* initialize the board */
         _board = BoardModel.newBoard(_control, 
            (_config.boardSize ? _config.boardSize : 13), PROP_BOARD);
+
+        _bmodel = new BoardGroupModel( (_config.boardSize ? _config.boardSize : 13) );
+        log('Board:\n' + _bmodel);
+
         _board.fieldChanged = onBoardChanged;
         _board.publish();
 
@@ -202,7 +209,7 @@ public class Server
             _aiplayers.forEach( function(ai:AIPlayer, i:int, a:Array):void
             {
                 ai.playerMessage(event.name, event.value,
-                    {'control': _control, 'board': _board} );
+                    {'control': _control, 'board': _board, 'bmodel': _bmodel} );
             });
 
             return;
@@ -226,8 +233,7 @@ public class Server
                 return;
             }
 
-            log("" + _current.name + "'s move: " + event.value.point);
-    	
+            log("" + _current.name + "'s move: (" + (event.value.point.x+1) +','+ (event.value.point.y+1) + ')');    	
     		_board.placePieceAt(event.value.point as Point, _current);
     	}
     }
@@ -256,7 +262,10 @@ public class Server
     }
     
     private function onBoardChanged(p : Point, _old : int, _new :int) : void
-    {	
+    {
+        _bmodel.putPiece(p.x+1, p.y+1, _new);
+        log('Board: \n' + _bmodel);
+
     	/* check win condition */
     	if( checkFiveOrMore(p, _current) )
     	{
@@ -405,6 +414,10 @@ public class Server
 
     public static function log(txt : String) : void {
         trace("[server] " + txt);
+    }
+
+    public static function profile_log(txt : String) : void {
+        trace("[profiler] " + txt);
     }
 
     protected var _control :GameControl;

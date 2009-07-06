@@ -9,24 +9,35 @@ package org.lq.gomoku.ai
         public var data:Array;
         public var size:int;
 
-        /* rate how good this position is for the given player */
-        public function value(me:int):Number
-        {
-            var gcount:Array = new Array();
+        private var gcount:Array;
 
-            var i:int,j:int, k:int;
-            var counter:int = 0;
-            var marker:int = 100;
-            var pmarker:int = 100;
-            var v:int;
-            
-            gcount[me] = new Array(); // me
-            gcount[1-me] = new Array(); // him
+        public function BoardState() {
+            var i:int;
+
+            gcount = new Array();
+
+            gcount[0] = new Array(); // me
+            gcount[1] = new Array(); // him
 
             for(i=1; i <= 5; i++) {
-                gcount[me][i] = new Array(0,0,0);
-                gcount[1-me][i] = new Array(0,0,0);
+                gcount[0][i] = new Array(0,0,0);
+                gcount[1][i] = new Array(0,0,0);
             }
+        }
+
+        public function reset_counts():void {
+            for(var i:int=1; i <= 5; i++) {
+                gcount[0][i][0] = gcount[0][i][1] = gcount[0][i][2] = 0;
+                gcount[1][i][0] = gcount[1][i][1] = gcount[1][i][2] = 0;
+            }
+        }
+
+        /* rate how good this position is for the given player */
+        public function value(me:int):Number
+        {        
+            var i:int,j:int,k:int,v:int,counter:int, marker:int, pmarker:int;
+            
+            reset_counts();
 
             var group_counter:Function = function(marker:int, count:int, ends:int):void
             {
@@ -39,6 +50,41 @@ package org.lq.gomoku.ai
                 function(r:int, start:int):Boolean { return start < data.length; },
                 function(r:int, idx:int):Boolean { return (idx - (r*size)) < size;}),
                 group_counter);
+
+            /*
+            counter = 0;
+            marker = pmarker = BORDER;
+            // optimized version
+            for(i=0, j=0, k=size; i < data.length; i += 1, k = j, j = (j+1)%size)
+            {
+                if( j < k ) // a row has ended
+                {
+                    if(counter > 0 && ((marker == 0) || (marker == 1)) )
+                        gcount[marker][counter][(pmarker < 0 ? 1 : 0)] += 1
+
+                    marker = pmarker = BORDER;
+                    counter = 0;
+                }
+
+                if(counter == 0) {
+                    counter = 1;
+                    pmarker = marker;
+                    marker = data[i];
+                    continue;
+                }
+
+                if(marker == data[i]) {
+                    counter++;
+                    if(counter > 5) counter = 5;
+                    continue;
+                }
+
+                if(counter > 0 && ((marker == 0) || (marker == 1)) )
+                        gcount[marker][counter][(pmarker < 0 ? 1 : 0) + (data[i] < 0 ? 1 : 0)] += 1
+
+                marker = pmarker = BORDER;
+                counter = 0;
+            }*/
 
             /* vertical */
             group_iter( iterator(0, 1, size,
@@ -123,8 +169,8 @@ package org.lq.gomoku.ai
           s -= gcount[1-me][3][2] * 8;
           s -= gcount[1-me][2][2] * 4;
 
-          if(Server.AI_LOG)
-              print_counts(gcount, me);
+          //if(Server.AI_LOG)
+          //    print_counts(gcount, me);
 
           return s;
         }
@@ -218,10 +264,10 @@ package org.lq.gomoku.ai
             var a:Array = new Array();
             var i:int, x:int;
 
-            // for(var i:int = 0; i < data.length; i++)
-            //    if(data[i] < 0) a.push(i);
+           // for(var i:int = 0; i < data.length; i++)
+           //     if(data[i] < 0) a.push(i);
 
-            for(i = 0; i < data.length; i++)
+             for(i = 0; i < data.length; i++)
             {
                 if(data[i] >= 0)
                     continue;
@@ -231,7 +277,7 @@ package org.lq.gomoku.ai
                  || occupied(i-size-1) || occupied(i-size+1)
                  || occupied(i+size-1) || occupied(i+size+1) )
                     a.push(i);
-            }
+             }
 
             // put in some randomness
             // also, makes sure there are any moves
@@ -242,26 +288,7 @@ package org.lq.gomoku.ai
             //}
             
             return a;
-        }
-
-        public function make_move(idx:int, player:int):BoardState
-        {
-            var b:BoardState = new BoardState();
-            b.data = data.slice();
-            b.size = size;
-
-            b.data[idx] = player;
-            return b;
-        }
-
-        public static function fromModel(b:BoardModel):BoardState
-        {
-            var state:BoardState = new BoardState();
-
-            state.size = b._size;
-            state.data = b._fields.slice();
-            return state;
-        }
+        }        
 
         private static const BORDER:int = 100;
         private static const ITER_END:int = 1001;
@@ -311,6 +338,38 @@ package org.lq.gomoku.ai
                }
              }
         } /* end of iterator */
+
+        private var history:Array = new Array();
+
+        /* copy method */
+        public function push_move(idx:int, player:int) :BoardState
+        {
+            history.push(idx);         
+            data[idx] = player;
+
+            return this;
+        }
+
+        public function pop_move() :BoardState
+        {
+            var idx:int = history.pop();
+            data[idx] = BoardModel.EMPTY;
+
+            return this;
+        }
+
+        /* alternate constructor */
+        public static function fromModel(b:BoardModel):BoardState
+        {
+            var state:BoardState = new BoardState();
+
+            state.size = b._size;
+            state.data = b._fields.slice();
+            return state;
+        }
+
+
+
     } /* end of class */
 
         

@@ -141,6 +141,8 @@ package org.lq.gomoku {
 		{
 			if(!_enabled)
 				return;
+
+            _enabled = false;
 			
 			/* _ctrl.local.feedback("Mouse click " 
 					+ event.localX + " , " + event.localY); */

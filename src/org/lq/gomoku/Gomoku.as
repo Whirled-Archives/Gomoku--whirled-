@@ -196,6 +196,7 @@ public class Gomoku extends Sprite
    		try {   			
    			_board.placePieceAt(point, _me);
    		} catch(e : IllegalMove) {
+            _boardView.enabled = true;
    			return;
    		}
    	}   

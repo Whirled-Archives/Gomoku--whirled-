@@ -64,7 +64,7 @@ package org.lq.gomoku {
 				_current = bitmap;
 			}			
 			
-			if(_hoverMode) {
+			if(_hoverMode && _parent.enabled) {
 				graphics.beginFill(0xff8080, 0.45);
 				graphics.drawRect(0, 0, _parent.PIECE_W, _parent.PIECE_H);
 				graphics.endFill();

@@ -1,6 +1,7 @@
 package org.lq.gomoku.logic {
 
 	import com.whirled.game.GameControl;
+    import org.lq.gomoku.ai.AIPlayer;
 
 	public class PlayerModel {
         public var net_id : int;
