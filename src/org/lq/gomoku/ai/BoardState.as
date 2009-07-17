@@ -1,6 +1,5 @@
 package org.lq.gomoku.ai
 {
-
     import org.lq.gomoku.logic.BoardModel;
     import org.lq.gomoku.logic.Server;
 

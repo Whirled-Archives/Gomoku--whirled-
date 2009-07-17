@@ -19,7 +19,7 @@ package org.lq.gomoku.logic {
 		
 		public var fieldChanged : Function;
 		
-		public function BoardModel() {	
+		public function BoardModel() {
 		}
 		
 		public static function newBoardFromProp(ctrl : GameControl, prop : String,

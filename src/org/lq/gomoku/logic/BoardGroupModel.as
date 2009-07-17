@@ -125,12 +125,12 @@ package org.lq.gomoku.logic {
             print_groups('After join.');
         } */
 
-        public function putPieceIdx(i:int, color:int):void
+        public function putPieceIdx(i:int, color:int):Piece
         {
-            putPiece( i%board_size +1, int(i/board_size) +1, color );
+            return putPiece( i%board_size +1, int(i/board_size) +1, color );
         }
 
-        public function putPiece(x:int, y:int, color:int):void
+        public function putPiece(x:int, y:int, color:int):Piece
         {
             if(color != C_BLACK && color != C_WHITE)
                 throw new Error('Can only put colored pieces on the board.');
@@ -142,11 +142,7 @@ package org.lq.gomoku.logic {
                 throw new Error('Field not empty.');
             
             // put the piece
-            var piece:Piece = pieces[y][x] = new Piece(x, y, color);
-
-            //update groups
-            var other:Piece;
-            var joined:Boolean;
+            var piece:Piece = pieces[y][x] = new Piece(x, y, color);            
 
             // horizontal
             if( pieces[y][x-1].color == piece.color )
@@ -206,7 +202,8 @@ package org.lq.gomoku.logic {
 
             // Server.log('After put: ');
             // for each(var g:PieceGroup in groups)
-            //    Server.log('' + g);            
+            //    Server.log('' + g);
+            return piece;
          }
 
         public function availble_moves(): Array
@@ -219,6 +216,16 @@ package org.lq.gomoku.logic {
                     if( (pieces[y][x].color < 0) && hasNeighbour(x,y) )
                         a.push([x,y]);
                 }
+
+            for(var i:int=0; i < 5; i++)
+            {
+                x = int(Math.random() * board_size) + 1;
+                y = int(Math.random() * board_size) + 1;
+                // Server.log("added random move: " + x + "," + y);
+            
+                if(pieces[y][x].color < 0 )
+                    a.push([x,y]);
+            }                
 
              return a;
         }

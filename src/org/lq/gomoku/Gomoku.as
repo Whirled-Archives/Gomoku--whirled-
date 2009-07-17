@@ -66,7 +66,6 @@ public class Gomoku extends Sprite
         img.x = 620;
         img.y = 280;
         addChild(img);
-
         
         if(! _ctrl.isConnected() )
         {
@@ -146,7 +145,6 @@ public class Gomoku extends Sprite
             });
 
 
-
             if(_me == null)
                 throw new Error("ID mismatch");
 
@@ -200,7 +198,8 @@ public class Gomoku extends Sprite
    			return;
    		}
    	}   
-    
+
+
     protected function turnChanged (event: Object) :void
 	{   
         //log("New turn holder: " +  event.next);

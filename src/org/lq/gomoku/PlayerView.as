@@ -4,6 +4,9 @@ package org.lq.gomoku {
 	import flash.display.DisplayObject;
 	
 	import flash.filters.GlowFilter;
+
+    import flash.utils.Timer;
+    import flash.events.TimerEvent;
 	
 	import flash.text.TextField;
 	import flash.text.TextFieldAutoSize;
@@ -14,6 +17,7 @@ package org.lq.gomoku {
 		
 	import org.lq.gomoku.logic.PlayerModel;
 	import org.lq.gomoku.logic.WhirledPlayer;
+    import org.lq.gomoku.ai.AIPlayer;
 
     import flash.events.MouseEvent;
 	
@@ -24,13 +28,16 @@ package org.lq.gomoku {
 		private var _headshot : DisplayObject;		
 		private var _label : TextField;		
 		private var _bg : DisplayObject;
+        
+        private var _pb : ProgressBar;
+        private var _timer : Timer;
 
         private var _rmbutton : DisablingButton;
 	
 		private var _ctrl : GameControl;
 	
 		private static var _glow : GlowFilter = 
-			new GlowFilter(0xf04040, 1.0, 8.0, 8.0, 2);
+			new GlowFilter(0xfa5a5a, 1.0, 8.0, 8.0, 2, 2, false, false);
 		
 		public function PlayerView (ctrl:GameControl, plr : PlayerModel)
 		{
@@ -45,7 +52,7 @@ package org.lq.gomoku {
 			
 			_headshot = _plr.headshot(MediaLibrary) as DisplayObject;
 			_headshot.x = 10;
-			_headshot.y = 9;			
+			_headshot.y = 10;
 			addChild(_headshot);
 			
 			_label = new TextField();
@@ -79,7 +86,7 @@ package org.lq.gomoku {
                   _rmbutton.enabled = false;
                   (_plr as WhirledPlayer).rematch();
                 }
-            );
+            );         
 
             _rmbutton.enabled = false;
             addChild(_rmbutton);
@@ -87,6 +94,22 @@ package org.lq.gomoku {
             else {
                 _rmbutton = null;
             }
+
+            if(_plr is AIPlayer)
+            {
+                _pb = new ProgressBar();
+
+                _pb.x = 10;
+                _pb.y = 120;
+                _pb.width = 80;
+                _pb.height = 10;
+                addChild(_pb);
+
+                _timer = new Timer(500, 24);
+                _timer.addEventListener(TimerEvent.TIMER, function(e:TimerEvent):void {
+                    _pb.progress += (1.0)/24;
+                });
+            }            
 		}
 		
 		public function get model () : PlayerModel {
@@ -103,10 +126,12 @@ package org.lq.gomoku {
 		public function update() : void
 		{            
 			if(_plr._active) {
-				_bg.filters = [ new GlowFilter(0xf04040, 1.0, 8.0, 8.0, 2) ];
+				_bg.filters = [ _glow ];
+                if(_plr is AIPlayer) _timer.start();
 			}
 			else {
-				_bg.filters = [];
+				_bg.filters = [];                
+                if(_plr is AIPlayer) { _pb.reset(); _timer.reset(); }
 			}			
 		}		
 	}

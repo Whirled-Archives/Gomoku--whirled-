@@ -82,9 +82,13 @@ public class Server
         var i:int;
         var b:Array = new Array();
 
+        log('shuffling: ' + a);
+
         for(i=0; i < a.length; i++) {
-            b[i] = Math.random();
+            b[i] = int(Math.random()*a.length*2);
         }
+
+        log('with: ' + b + ' l: ' + b.length );
 
         var t:int, tt:*;
         var s:Boolean = false;
@@ -93,9 +97,9 @@ public class Server
         {
             s = false;
             for(i=0; i < b.length-1; i++)
-            {
+            {                
                 if (b[i] > b[i+1])
-                {
+                {             
                     t = b[i]; tt = a[i];
                     b[i] = b[i+1]; a[i] = a[i+1];
                     b[i+1] = t; a[i+1] = tt;
@@ -103,7 +107,9 @@ public class Server
                 }
             }
        }
-       while(s);
+       while(s)
+
+       log('shuffled: ' + b + ' | ' + a);
     }
 
     
@@ -238,11 +244,11 @@ public class Server
     	}
     }
 
-    private function otherPlayersIds() : Array
+    private function otherPlayersIds(p :PlayerModel = null) : Array
     {
         return _players.
             filter( function(o:*,i:int,a:Array):Boolean
-                { return (o == _current) && (o != NetSubControl.TO_SERVER_AGENT); } ).
+                { return (o == p) && (o != NetSubControl.TO_SERVER_AGENT); } ).
             map( function(o:*,i:int,a:Array):int
                 { return o.net_id; } );
     }
@@ -275,7 +281,7 @@ public class Server
                     GameSubControl.WINNERS_TAKE_ALL );
             }
             else {
-                _control.game.endGameWithWinners([_current.net_id], otherPlayersIds(),
+                _control.game.endGameWithWinners([_current.net_id], otherPlayersIds(_current),
                     GameSubControl.WINNERS_TAKE_ALL );
             }
     		return;
@@ -346,7 +352,10 @@ public class Server
             return;
         }
 
-        trace("Player left: " + event.occupantId);       
+        trace("Player left: " + event.occupantId);
+        _control.game.endGameWithWinners( allPlayersIds().filter(
+            function(id:int, i:int, a:Array):Boolean { return (id  != event.occupantId) }),
+            [event.occupantId], GameSubControl.WINNERS_TAKE_ALL ); 
     }
 
     private static const TROPHY_DEFAULTS:Object = {

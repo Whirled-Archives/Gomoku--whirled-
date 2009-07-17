@@ -23,7 +23,8 @@ package org.lq.gomoku {
 	
 		private var _width :int,_height :int;
 		private var _piece_w :int,_piece_h : int, _piece_w2:int, _piece_h2:int;
-		private var _hover : FieldView;		
+		private var _hover : FieldView;
+        private var _lastPlaced : FieldView;
 		
 		private var _enabled : Boolean;
 		
@@ -45,7 +46,7 @@ package org.lq.gomoku {
 			_subviews = new Array();
 			
 			mouseChildren = false;
-			opaqueBackground = 0x000000;
+			opaqueBackground = null;
 			
 			var fv : FieldView;
 			
@@ -91,7 +92,7 @@ package org.lq.gomoku {
 		public function _redraw() :void 
 		{						
 			with(graphics) 
-			{			
+			{               
 				beginBitmapFill(_media.imgWoodPattern.bitmapData);		
 				drawRect(_border,_border,_width,_height);
 				endFill();
@@ -168,10 +169,10 @@ package org.lq.gomoku {
 				return;		
 			
 			if(_hover)
-				_hover.setHover(false);
+				_hover.hover = false;
 			
 			if(active)
-				active.setHover(true);
+				active.hover = true;
 			
 			_hover = active;						
 			event.updateAfterEvent();			
@@ -182,7 +183,15 @@ package org.lq.gomoku {
 			//_ctrl.local.feedback("point :" + p + " value is " + nV
 			//		+ " was " + oV );			
 			
-			_subviews[p.y*_model.size+p.x].redraw();
+            if(_lastPlaced != null)
+                _lastPlaced.highlight = false;
+
+            _lastPlaced = _subviews[p.y*_model.size+p.x];
+            _lastPlaced.highlight = true;
+            _lastPlaced.redraw();
+
+            // draw threats
+
 		}
 		
 		public function setMoveListener(callback : Function) : void {
