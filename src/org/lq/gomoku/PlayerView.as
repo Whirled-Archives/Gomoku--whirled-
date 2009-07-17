@@ -121,6 +121,7 @@ package org.lq.gomoku {
 			_bg.filters = [];
             if(_rmbutton)
                 _rmbutton.enabled = true;
+            if(_plr is AIPlayer) { _pb.reset(); _timer.reset(); }
 		}
 		
 		public function update() : void
